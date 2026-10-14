@@ -327,9 +327,6 @@
 
     /* โหมดเต็มจอ (ทั้งหน้าเว็บ: แถบข้าง, canvas, toast, หน้าต่างต่าง ๆ) */
     html:fullscreen, html:-webkit-full-screen { background: #0c0c0f; }
-    /* โหมดขยายเต็มเฟรม (ใช้เมื่อเต็มจอจริงไม่ได้ เช่น ฝังใน Google Sites) */
-    html.fs-fake #sidebar { display: none; }
-    html.fs-fake body { flex-direction: row; height: 100vh; overflow: hidden; }
 
     #toast {
       position: fixed; bottom: 24px; right: 24px; background: #1f1f28;
@@ -734,7 +731,6 @@
       <div class="canvas-controls">
         <button data-tip="รีเซ็ตการซูมและการเลื่อนของพื้นที่แสดงผล ให้เห็นแผ่นวัสดุทั้งแผ่นพอดีจอ" onclick="resetView()">🔍 รีเซ็ตมุมมอง</button>
         <button type="button" id="btn-fullscreen" title="เต็มจอ (กด F) / ออกจากเต็มจอ (กด Esc)">⛶ เต็มจอ</button>
-        <button type="button" id="btn-newtab" style="display:none">↗ เปิดหน้าต่างใหม่</button>
       </div>
       <canvas id="viewport"></canvas>
     </div>
@@ -2896,61 +2892,33 @@
       if (!btn) return;
 
       const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
-      const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+      const isFull = () => !!fsElement();
       const canFS = !!(target.requestFullscreen || target.webkitRequestFullscreen);
-      const nativeOK = () => canFS && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
-      let fake = false;                                   // โหมดขยายเต็มเฟรม (สำรอง เมื่อเต็มจอจริงไม่ได้)
-      const isFull = () => !!fsElement() || fake;
 
       function updateUI() {
         btn.textContent = isFull() ? '🗗 ออกจากเต็มจอ' : '⛶ เต็มจอ';
         // ให้ canvas วาดใหม่ตามขนาดหลังเปลี่ยนโหมด
         requestAnimationFrame(() => requestAnimationFrame(renderCanvas));
       }
-      function setFake(on) { fake = on; document.documentElement.classList.toggle('fs-fake', on); updateUI(); }
 
       async function enter() {
-        if (!nativeOK()) {
-          setFake(true);
-          toast(inFrame ? 'หน้านี้ถูกฝังในเว็บอื่น (เช่น Google Sites) เต็มจอจริงไม่ได้ — ขยายพื้นที่แสดงผลเต็มเฟรมแทน · กด "เปิดหน้าต่างใหม่" เพื่อใช้เต็มจอจริง' : 'เบราว์เซอร์นี้ไม่รองรับโหมดเต็มจอ — ขยายพื้นที่แสดงผลแทน');
-          return;
-        }
+        if (!canFS) { toast('เบราว์เซอร์นี้ไม่รองรับโหมดเต็มจอ'); return; }
         try { await (target.requestFullscreen || target.webkitRequestFullscreen).call(target); }
-        catch (e) { setFake(true); toast('เต็มจอจริงไม่ได้ในหน้านี้ — ขยายพื้นที่แสดงผลเต็มเฟรมแทน'); }
+        catch (e) { toast('ไม่สามารถเข้าสู่โหมดเต็มจอได้'); }
       }
 
       async function exit() {
-        if (fake) { setFake(false); return; }
         const ex = document.exitFullscreen || document.webkitExitFullscreen;
-        if (ex && fsElement()) { try { await ex.call(document); } catch (e) {} }
+        if (ex && isFull()) { try { await ex.call(document); } catch (e) {} }
       }
 
       function toggle() { isFull() ? exit() : enter(); }
-
-      // เปิดโปรแกรมในแท็บใหม่ (ใช้เมื่อฝังอยู่ในเว็บอื่น) — เริ่มด้วยค่าตั้งต้น ไม่นำชิ้นงานที่นำเข้าไปด้วย
-      function openNewTab() {
-        const c = document.documentElement.cloneNode(true);
-        c.classList.remove('fs-fake');
-        ['part-list', 'sheet-tabs', 'file-warnings'].forEach(id => { const e = c.querySelector('#' + id); if (e) e.innerHTML = ''; });
-        c.querySelectorAll('#tip').forEach(e => e.remove());
-        c.querySelectorAll('.open, .show').forEach(e => e.classList.remove('open', 'show'));
-        const set = (id, t) => { const e = c.querySelector('#' + id); if (e) e.textContent = t; };
-        set('stat-sheets', '0 แผ่น'); set('stat-parts', '0 / 0'); set('stat-util', '0.0%');
-        set('status-text', 'พร้อมใช้งาน: โหลดตัวอย่างหรือเลือกไฟล์ DXF / AI เพื่อเริ่มคำนวณ');
-        const url = URL.createObjectURL(new Blob(['<!DOCTYPE html>\n' + c.outerHTML], { type: 'text/html' }));
-        const w = window.open(url, '_blank');
-        if (!w) toast('เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาต pop-up ของเว็บไซต์นี้แล้วลองอีกครั้ง');
-        setTimeout(() => URL.revokeObjectURL(url), 120000);
-      }
-      const nt = $('btn-newtab');
-      if (nt) { nt.style.display = inFrame ? '' : 'none'; nt.addEventListener('click', openNewTab); }
 
       btn.addEventListener('click', toggle);
       document.addEventListener('fullscreenchange', updateUI);
       document.addEventListener('webkitfullscreenchange', updateUI);
 
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && fake) { setFake(false); return; }
         const tag = (e.target.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
         if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -4502,8 +4470,7 @@
       'stat-sheets': 'จำนวนแผ่นวัสดุที่ใช้ในการจัดวาง',
       'stat-parts': 'จำนวนชิ้นงานที่วางได้ / จำนวนทั้งหมดที่ต้องการ',
       'stat-util': 'เปอร์เซ็นต์พื้นที่แผ่นที่ถูกใช้โดยชิ้นงาน ยิ่งสูงยิ่งประหยัดวัสดุ',
-      'btn-fullscreen': 'แสดงพื้นที่จัดวางเต็มหน้าจอ (ลัด: กด F) · ออกจากเต็มจอกด Esc · ถ้าฝังอยู่ในเว็บอื่นที่ไม่อนุญาตเต็มจอ จะขยายพื้นที่แสดงผลเต็มเฟรมแทน',
-      'btn-newtab': 'เปิดโปรแกรมนี้ในแท็บใหม่ เพื่อใช้เต็มจอจริงได้ (ใช้เมื่อฝังอยู่ใน Google Sites ฯลฯ) · เริ่มด้วยค่าตั้งต้น ชิ้นงานที่นำเข้าไว้จะไม่ถูกนำไปด้วย',
+      'btn-fullscreen': 'แสดงพื้นที่จัดวางเต็มหน้าจอ (ลัด: กด F) · ออกจากเต็มจอกด Esc',
       // หน้าต่างต่าง ๆ
       'support-close': 'ปิดหน้าต่าง', 'gcp-close': 'ปิดหน้าต่าง', 'tdb-close': 'ปิดหน้าต่าง (หรือกด Esc)',
       'support-download': 'ดาวน์โหลดไฟล์ที่เตรียมไว้',
