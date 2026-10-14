@@ -68,10 +68,52 @@ h1{font-family:'Chakra Petch','Sarabun',sans-serif;font-size:clamp(1.6rem,4vw,2.
 #home.skip #sparks,#home.skip #scan{display:none}
 @media (prefers-reduced-motion:reduce){#home *,#home *::before{animation-duration:.001s!important;animation-delay:0s!important}#sparks,#scan{display:none}}
 .card.rv:hover,.card.rv:focus-visible{transform:translateY(-4px)}
+
+/* ===== Login (Firebase) ===== */
+#auth{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(900px 450px at 85% -10%,#3a0a10 0,transparent 60%),var(--bg);overflow:auto}
+#auth.hide{display:none}
+#auth .abox{width:100%;max-width:380px;background:var(--card);border:1px solid var(--bd);border-top:3px solid var(--red);border-radius:16px;padding:26px 24px;box-shadow:0 16px 48px rgba(0,0,0,.5)}
+#auth h2{font-family:'Chakra Petch','Sarabun',sans-serif;font-size:1.3rem;text-align:center;margin-bottom:4px}
+#auth .asub{color:var(--mut);font-size:.9rem;text-align:center;margin-bottom:20px}
+#auth label{display:block;font-size:.85rem;color:var(--mut);margin:12px 0 5px}
+#auth input{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:10px;color:var(--tx);font:inherit;padding:11px 12px}
+#auth input:focus{outline:2px solid var(--red2);outline-offset:-1px}
+#auth .abtn{width:100%;margin-top:18px;cursor:pointer;border:0;border-radius:10px;background:var(--red);color:#fff;font:600 1rem 'Sarabun',sans-serif;padding:12px}
+#auth .abtn:hover{background:var(--red2)}
+#auth .abtn:disabled{opacity:.55;cursor:wait}
+#auth .abtn.g{background:var(--card2);border:1px solid var(--bd);margin-top:10px}
+#auth .alink{display:block;margin:14px auto 0;background:none;border:0;color:var(--red2);cursor:pointer;font:inherit;font-size:.88rem}
+#auth .amsg{min-height:1.2em;margin-top:12px;font-size:.88rem;text-align:center;color:#ff7a80;line-height:1.5}
+#auth .amsg.ok{color:#6fd98a}
+#auth .alang{display:flex;justify-content:center;margin-bottom:16px}
+.lo{cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--mut);border-radius:999px;font:600 .82rem 'Chakra Petch','Sarabun',sans-serif;padding:6px 13px;display:none}
+.lo:hover{color:var(--tx);border-color:var(--red)}
+.lo.on{display:inline-block}
+#logoutHome{position:absolute;top:max(14px,env(safe-area-inset-top));left:16px;z-index:5}
 </style>
 </head>
 <body>
+<div id="auth" role="dialog" aria-modal="true" aria-labelledby="aTitle">
+  <div class="abox">
+    <div class="alang"><div class="lang" id="authLang" role="group" aria-label="Language"><button type="button" data-l="th">ไทย</button><button type="button" data-l="en">EN</button></div></div>
+    <h2 id="aTitle"></h2>
+    <p class="asub" id="aSub"></p>
+    <div id="aForm">
+      <label for="aEmail" id="aEmailL"></label>
+      <input id="aEmail" type="email" autocomplete="username" inputmode="email">
+      <label for="aPass" id="aPassL"></label>
+      <input id="aPass" type="password" autocomplete="current-password">
+      <button type="button" class="abtn" id="aGo"></button>
+      <button type="button" class="abtn g" id="aGoogle" style="display:none"></button>
+      <button type="button" class="alink" id="aForgot"></button>
+      <button type="button" class="alink" id="aSwitch" style="display:none"></button>
+    </div>
+    <div class="amsg" id="aMsg" role="alert"></div>
+  </div>
+</div>
+
 <div id="home">
+  <button type="button" class="lo" id="logoutHome"></button>
   <div class="lang rv" style="--d:.4s" id="homeLang" role="group" aria-label="Language"><button data-l="th">ไทย</button><button data-l="en">EN</button></div>
   <div id="stage" role="img" aria-label="MOS DESIGN" title="MOS DESIGN">
     <div id="glow"></div>
@@ -107,12 +149,15 @@ h1{font-family:'Chakra Petch','Sarabun',sans-serif;font-size:clamp(1.6rem,4vw,2.
     <span id="ttl"></span>
     <div id="barRight">
       <div id="tabs"></div>
+      <button type="button" class="lo" id="logoutBar"></button>
       <div class="lang" id="barLang" role="group" aria-label="Language"><button data-l="th">ไทย</button><button data-l="en">EN</button></div>
     </div>
   </div>
   <div id="frames"></div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script>
 var I18N={
   th:{title:'ชุดโปรแกรมงานป้าย & สติ๊กเกอร์',brand:'Sign & Sticker Toolkit',h1:'เลือกโปรแกรมที่ต้องการใช้งาน',
@@ -205,6 +250,112 @@ makeSparks();
 introTimer=setTimeout(function(){introRunning=false},3500);
 paint();
 var h=location.hash.slice(1);if(APPS[h]){skipIntro();openApp(h)}
+</script>
+<script>
+/* ===== Firebase Login ===== */
+(function(){
+  // 1) วางค่าจาก Firebase Console > Project settings > Your apps > Web app
+  var FIREBASE_CONFIG={
+    apiKey:'AIzaSyBc7H1rH0ptyoz3YhGrv69uOX32qkBEtbk',
+    authDomain:'sign-sticker-toolkit.firebaseapp.com',
+    projectId:'sign-sticker-toolkit',
+    appId:'1:72403815181:web:22b115f437749185d17e44'
+  };
+  // 2) ตัวเลือก
+  var ALLOW_SIGNUP=true;   // true = ให้ใครก็ได้สมัครเองได้ / false = แอดมินสร้างบัญชีใน Firebase Console
+  var ENABLE_GOOGLE=true;  // true = แสดงปุ่มเข้าสู่ระบบด้วย Google
+  var ALLOWED_EMAILS=[];    // เช่น ['a@gmail.com','b@shop.com'] ว่าง = ไม่จำกัด
+
+  var TX={
+    th:{title:'เข้าสู่ระบบ',reg:'สมัครสมาชิก',sub:'กรุณาเข้าสู่ระบบเพื่อใช้งานชุดโปรแกรม',email:'อีเมล',pass:'รหัสผ่าน',
+        go:'เข้าสู่ระบบ',goReg:'สมัครสมาชิก',google:'เข้าสู่ระบบด้วย Google',forgot:'ลืมรหัสผ่าน?',toReg:'ยังไม่มีบัญชี? สมัครสมาชิก',toLogin:'มีบัญชีแล้ว? เข้าสู่ระบบ',
+        logout:'ออกจากระบบ',needEmail:'กรุณากรอกอีเมลและรหัสผ่าน',needEmail2:'กรุณากรอกอีเมลก่อน',resetSent:'ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมลแล้ว',
+        notAllowed:'บัญชีนี้ไม่ได้รับอนุญาตให้ใช้งาน',notCfg:'ยังไม่ได้ตั้งค่า Firebase (ดู FIREBASE_CONFIG ในไฟล์)',noLib:'โหลด Firebase ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต',
+        e_cred:'อีเมลหรือรหัสผ่านไม่ถูกต้อง',e_mail:'รูปแบบอีเมลไม่ถูกต้อง',e_used:'อีเมลนี้ถูกใช้สมัครแล้ว',e_weak:'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+        e_many:'พยายามหลายครั้งเกินไป กรุณารอสักครู่',e_net:'เชื่อมต่อเครือข่ายไม่ได้',e_env:'ต้องเปิดผ่าน http(s) เช่น เว็บโฮสติ้ง ไม่ใช่เปิดไฟล์ตรงๆ',e_dom:'โดเมนนี้ยังไม่ได้เพิ่มใน Authorized domains ของ Firebase',e_other:'เกิดข้อผิดพลาด กรุณาลองใหม่'},
+    en:{title:'Sign in',reg:'Create account',sub:'Please sign in to use the toolkit',email:'Email',pass:'Password',
+        go:'Sign in',goReg:'Create account',google:'Sign in with Google',forgot:'Forgot password?',toReg:'No account? Create one',toLogin:'Already have an account? Sign in',
+        logout:'Sign out',needEmail:'Please enter email and password',needEmail2:'Please enter your email first',resetSent:'Password reset link sent to your email',
+        notAllowed:'This account is not allowed to use the toolkit',notCfg:'Firebase is not configured (see FIREBASE_CONFIG in the file)',noLib:'Could not load Firebase. Check your connection',
+        e_cred:'Incorrect email or password',e_mail:'Invalid email format',e_used:'This email is already registered',e_weak:'Password must be at least 6 characters',
+        e_many:'Too many attempts. Please wait a moment',e_net:'Network error',e_env:'Open this over http(s), e.g. web hosting, not as a local file',e_dom:'This domain is not in Firebase Authorized domains',e_other:'Something went wrong. Please try again'}
+  };
+  var $=function(s){return document.querySelector(s)};
+  var mode='login',user=null,auth=null,cfgOk=!/^YOUR_/.test(FIREBASE_CONFIG.apiKey);
+  function L(k){return TX[LANG][k]}
+  function msg(k,ok){var m=$('#aMsg');m.textContent=k?(TX[LANG][k]||k):'';m.className='amsg'+(ok?' ok':'');m.dataset.k=k||'';m.dataset.ok=ok?'1':''}
+  function authPaint(){
+    var reg=mode==='reg';
+    $('#aTitle').textContent=L(reg?'reg':'title');
+    $('#aSub').textContent=L('sub');
+    $('#aEmailL').textContent=L('email');$('#aPassL').textContent=L('pass');
+    $('#aGo').textContent=L(reg?'goReg':'go');
+    $('#aGoogle').textContent=L('google');$('#aGoogle').style.display=ENABLE_GOOGLE?'block':'none';
+    $('#aForgot').textContent=L('forgot');$('#aForgot').style.display=reg?'none':'block';
+    $('#aSwitch').textContent=L(reg?'toLogin':'toReg');$('#aSwitch').style.display=ALLOW_SIGNUP?'block':'none';
+    $('#aPass').autocomplete=reg?'new-password':'current-password';
+    ['#logoutHome','#logoutBar'].forEach(function(id){var b=$(id);b.textContent=L('logout');b.classList.toggle('on',!!user)});
+    var m=$('#aMsg');if(m.dataset.k)m.textContent=TX[LANG][m.dataset.k]||m.dataset.k;
+  }
+  var _paint=paint;paint=function(){_paint();authPaint()};
+  var _open=openApp;openApp=function(id){if(!user)return;_open(id)};
+
+  function errKey(e){
+    switch(e&&e.code){
+      case 'auth/invalid-credential':case 'auth/wrong-password':case 'auth/user-not-found':case 'auth/invalid-login-credentials':return 'e_cred';
+      case 'auth/invalid-email':return 'e_mail';
+      case 'auth/email-already-in-use':return 'e_used';
+      case 'auth/weak-password':return 'e_weak';
+      case 'auth/too-many-requests':return 'e_many';
+      case 'auth/network-request-failed':return 'e_net';
+      case 'auth/operation-not-supported-in-this-environment':return 'e_env';
+      case 'auth/unauthorized-domain':return 'e_dom';
+      case 'auth/popup-closed-by-user':case 'auth/cancelled-popup-request':return '';
+      default:return 'e_other';
+    }
+  }
+  function allowed(u){
+    if(!ALLOWED_EMAILS.length)return true;
+    var em=(u.email||'').toLowerCase();
+    return ALLOWED_EMAILS.some(function(x){return x.toLowerCase()===em});
+  }
+  function busy(b){['#aGo','#aGoogle'].forEach(function(id){$(id).disabled=b})}
+  function run(p){busy(true);msg('');return p.catch(function(e){msg(errKey(e))}).then(function(){busy(false)})}
+
+  $('#aGo').onclick=function(){
+    if(!auth)return;
+    var em=$('#aEmail').value.trim(),pw=$('#aPass').value;
+    if(!em||!pw){msg('needEmail');return}
+    run(mode==='reg'&&ALLOW_SIGNUP?auth.createUserWithEmailAndPassword(em,pw):auth.signInWithEmailAndPassword(em,pw));
+  };
+  $('#aGoogle').onclick=function(){if(auth)run(auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()))};
+  $('#aForgot').onclick=function(){
+    if(!auth)return;var em=$('#aEmail').value.trim();
+    if(!em){msg('needEmail2');return}
+    run(auth.sendPasswordResetEmail(em).then(function(){msg('resetSent',true)}));
+  };
+  $('#aSwitch').onclick=function(){mode=mode==='reg'?'login':'reg';msg('');authPaint()};
+  ['#aEmail','#aPass'].forEach(function(id){$(id).addEventListener('keydown',function(e){if(e.key==='Enter')$('#aGo').click()})});
+  function logout(){if(auth)auth.signOut()}
+  $('#logoutHome').onclick=logout;$('#logoutBar').onclick=logout;
+
+  function show(on){$('#auth').classList.toggle('hide',!on)}
+  if(!cfgOk){msg('notCfg')}
+  else if(typeof firebase==='undefined'){msg('noLib')}
+  else{
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);auth=firebase.auth();
+      auth.onAuthStateChanged(function(u){
+        if(u&&!allowed(u)){user=null;msg('notAllowed');auth.signOut();return}
+        user=u;
+        if(u){msg('');$('#aPass').value='';show(false)}
+        else{show(true);if(cur)goHome()}
+        authPaint();
+      });
+    }catch(e){msg('e_other')}
+  }
+  authPaint();
+})();
 </script>
 </body>
 </html>
