@@ -71,7 +71,10 @@ h1{font-family:'Chakra Petch','Sarabun',sans-serif;font-size:clamp(1.6rem,4vw,2.
 
 /* ===== Login (Firebase) ===== */
 #auth{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(900px 450px at 85% -10%,#3a0a10 0,transparent 60%),var(--bg);overflow:auto}
+#auth{transition:opacity .45s ease}
+#auth.fade{opacity:0;pointer-events:none}
 #auth.hide{display:none}
+#home.hold *,#home.hold *::before,#home.hold *::after{animation-play-state:paused!important}
 #auth .abox{width:100%;max-width:380px;background:var(--card);border:1px solid var(--bd);border-top:3px solid var(--red);border-radius:16px;padding:26px 24px;box-shadow:0 16px 48px rgba(0,0,0,.5)}
 #auth h2{font-family:'Chakra Petch','Sarabun',sans-serif;font-size:1.3rem;text-align:center;margin-bottom:4px}
 #auth .asub{color:var(--mut);font-size:.9rem;text-align:center;margin-bottom:20px}
@@ -339,7 +342,16 @@ var h=location.hash.slice(1);if(APPS[h]){skipIntro();openApp(h)}
   function logout(){if(auth)auth.signOut()}
   $('#logoutHome').onclick=logout;$('#logoutBar').onclick=logout;
 
-  function show(on){$('#auth').classList.toggle('hide',!on)}
+  var fadeT=null;
+  function show(on){
+    var a=$('#auth');clearTimeout(fadeT);
+    if(on){a.classList.remove('fade','hide');homeEl.classList.remove('hold');return}
+    if(a.classList.contains('hide'))return;
+    // จางหน้าล็อกอินก่อน แล้วค่อยเริ่มแอนิเมชันหน้าแรก
+    a.classList.add('fade');
+    if(!cur){homeEl.classList.add('hold');try{playIntro()}catch(e){}}
+    fadeT=setTimeout(function(){a.classList.add('hide');a.classList.remove('fade');homeEl.classList.remove('hold')},450);
+  }
   if(!cfgOk){msg('notCfg')}
   else if(typeof firebase==='undefined'){msg('noLib')}
   else{
