@@ -94,12 +94,14 @@ h1{font-family:'Chakra Petch','Sarabun',sans-serif;font-size:clamp(1.6rem,4vw,2.
 .lo{cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--mut);border-radius:999px;font:600 .82rem 'Chakra Petch','Sarabun',sans-serif;padding:6px 13px;display:none}
 .lo:hover{color:var(--tx);border-color:var(--red)}
 .lo.on{display:inline-block}
-/* ===== Live stats ===== */
-.stats{display:none;gap:10px;justify-content:center;flex-wrap:wrap;margin:22px 0 4px}
-.stats.on{display:flex}
-.stat{background:var(--card);border:1px solid var(--bd);border-radius:999px;padding:7px 15px;font:600 .88rem 'Chakra Petch','Sarabun',sans-serif;color:var(--mut);display:inline-flex;align-items:center;gap:7px}
-.stat b{color:var(--tx);font-size:1rem}
-.stat .dot{width:8px;height:8px;border-radius:50%;background:#3ddc6f;box-shadow:0 0 0 0 rgba(61,220,111,.6);animation:pulse 1.8s infinite}
+/* ===== Live stats (Top Bar) ===== */
+.stats{display:none;gap:6px;align-items:center;flex-wrap:nowrap}
+.stats.on{display:inline-flex}
+.stat{background:var(--card);border:1px solid var(--bd);border-radius:999px;padding:4px 10px;font:600 .78rem 'Chakra Petch','Sarabun',sans-serif;color:var(--mut);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.stat b{color:var(--tx);font-size:.85rem}
+.stat .dot{width:7px;height:7px;border-radius:50%;background:#3ddc6f;box-shadow:0 0 0 0 rgba(61,220,111,.6);animation:pulse 1.8s infinite}
+@media(max-width:900px){.stats .stat span:not(.stat-lbl){display:none}}
+@media(max-width:600px){.stats{display:none!important}}
 @keyframes pulse{70%{box-shadow:0 0 0 7px rgba(61,220,111,0)}100%{box-shadow:0 0 0 0 rgba(61,220,111,0)}}
 #logoutHome{position:absolute;top:max(14px,env(safe-area-inset-top));left:16px;z-index:5}
 </style>
@@ -153,10 +155,6 @@ h1{font-family:'Chakra Petch','Sarabun',sans-serif;font-size:clamp(1.6rem,4vw,2.
       <h2 data-i="t_vinyl"></h2><p data-i="d_vinyl"></p><span class="go" data-i="open"></span>
     </button>
   </div>
-  <div class="stats" id="stats" aria-live="polite">
-    <span class="stat"><i class="dot"></i><span id="stOnL"></span> <b id="stOn">–</b></span>
-    <span class="stat"><span>👥</span><span id="stRegL"></span> <b id="stReg">–</b></span>
-  </div>
 </div>
 
 <div id="app">
@@ -164,6 +162,10 @@ h1{font-family:'Chakra Petch','Sarabun',sans-serif;font-size:clamp(1.6rem,4vw,2.
     <button id="back"></button>
     <span id="ttl"></span>
     <div id="barRight">
+      <div class="stats" id="stats" aria-live="polite">
+        <span class="stat"><i class="dot"></i><span id="stOnL"></span> <b id="stOn">–</b></span>
+        <span class="stat"><span>👥</span><span id="stRegL"></span> <b id="stReg">–</b></span>
+      </div>
       <div id="tabs"></div>
       <button type="button" class="lo" id="logoutBar"></button>
       <div class="lang" id="barLang" role="group" aria-label="Language"><button data-l="th">ไทย</button><button data-l="en">EN</button><button data-l="zh">中文</button><button data-l="vi">VI</button><button data-l="ja">日本語</button><button data-l="ru">RU</button><select class="cursel" aria-label="Currency" onchange="setCur(this.value)"><option value="THB">฿ THB</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option><option value="CNY">¥ CNY</option><option value="JPY">¥ JPY</option><option value="VND">₫ VND</option><option value="RUB">₽ RUB</option></select></div>
@@ -384,6 +386,7 @@ var h=location.hash.slice(1);if(APPS[h]){skipIntro();openApp(h)}
   };
   $('#aSwitch').onclick=function(){mode=mode==='reg'?'login':'reg';msg('');authPaint()};
   ['#aEmail','#aPass'].forEach(function(id){$(id).addEventListener('keydown',function(e){if(e.key==='Enter')$('#aGo').click()})});
+
   /* ===== Live stats (Firestore) ===== */
   var db=null,hbT=null,pollT=null,statsUid=null;
   var ONLINE_MS=150000,BEAT_MS=60000;
